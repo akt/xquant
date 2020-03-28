@@ -33,69 +33,6 @@ def set(apiKey, secret):
     options["secret"] = secret
 
 
-def time():
-    data = request("GET", "/api/v3/time")
-    return data["serverTime"]
-
-
-def prices():
-    """Get latest prices for all symbols."""
-    data = request("GET", "/api/v1/ticker/allPrices")
-    return {d["symbol"]: d["price"] for d in data}
-
-
-def tickers():
-    """Get best price/qty on the order book for all symbols."""
-    data = request("GET", "/api/v1/ticker/allBookTickers")
-    return {d["symbol"]: {
-        "bid": d["bidPrice"],
-        "ask": d["askPrice"],
-        "bidQty": d["bidQty"],
-        "askQty": d["askQty"],
-    } for d in data}
-
-
-def depth(symbol, **kwargs):
-    """Get order book.
-    Args:
-        symbol (str)
-        limit (int, optional): Default 100. Must be one of 50, 20, 100, 500, 5,
-            200, 10.
-    """
-    params = {"symbol": symbol}
-    params.update(kwargs)
-    data = request("GET", "/api/v1/depth", params)
-    return {
-        "bids": {px: qty for px, qty in data["bids"]},
-        "asks": {px: qty for px, qty in data["asks"]},
-    }
-
-
-def klines(symbol, interval, **kwargs):
-    """Get kline/candlestick bars for a symbol.
-    Klines are uniquely identified by their open time. If startTime and endTime
-    are not sent, the most recent klines are returned.
-    Args:
-        symbol (str)
-        interval (str)
-        limit (int, optional): Default 500; max 500.
-        startTime (int, optional)
-        endTime (int, optional)
-    """
-    params = {"symbol": symbol, "interval": interval}
-    params.update(kwargs)
-    data = request("GET", "/api/v1/klines", params)
-    return [{
-        "openTime": d[0],
-        "open": d[1],
-        "high": d[2],
-        "low": d[3],
-        "close": d[4],
-        "volume": d[5],
-        "closeTime": d[6],
-        "quoteVolume": d[7],
-        "numTrades": d[8],
-    } for d in data]
 
 
 def balances():
@@ -228,7 +165,7 @@ def signedRequest(method, path, params):
         raise ValueError("Api key and secret must be set")
 
     query = urlencode(sorted(params.items()))
-    query += "&timestamp={}".format(int(time.time() * 1000))
+    query += "&timestamp={}".format(int(time()))
     secret = bytes(options["secret"].encode("utf-8"))
     signature = hmac.new(secret, query.encode("utf-8"),
                          hashlib.sha256).hexdigest()
@@ -240,10 +177,3 @@ def signedRequest(method, path, params):
     if "msg" in data:
         logging.error(data['msg'])
     return data
-
-
-def formatNumber(x):
-    if isinstance(x, float):
-        return "{:.8f}".format(x)
-    else:
-        return str(x)
